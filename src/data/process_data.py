@@ -45,8 +45,8 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # 2. Extract new column names
     categories_df.columns = [col[:-2] for col in categories_df.iloc[0]]
 
-    # 3. Convert category values to 0s and 1s
-    categories_df = categories_df.applymap(lambda x: int(x.split("-")[1]))
+    # 3. Convert category values to 0s and 1s (any positive int is converted to 1)
+    categories_df = categories_df.applymap(lambda x: int(bool(int(x.split("-")[1]))))
 
     # 4. Replace categories column with new category columns
     df = pd.concat([df.drop(columns=["categories"]), categories_df], axis=1)
@@ -74,7 +74,7 @@ def save_data(df: pd.DataFrame, database_filepath: Path) -> None:
     logging.info(f"Saving data to {database_filepath}...")
 
     engine = create_engine(f"sqlite:///{database_filepath}")
-    df.to_sql("disaster_messages", engine, index=False)
+    df.to_sql("disaster_messages", engine, index=False, if_exists="replace")
 
     logging.info("Data successfully saved.")
 
