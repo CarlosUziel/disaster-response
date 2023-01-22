@@ -5,6 +5,9 @@ import pandas as pd
 import typer
 from sqlalchemy import create_engine
 
+logging.basicConfig(force=True)
+logging.getLogger().setLevel(logging.INFO)
+
 
 def load_data(messages_filepath: Path, categories_filepath: Path) -> pd.DataFrame:
     """Load disaster datasets and merge.
@@ -46,13 +49,13 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     categories_df.columns = [col[:-2] for col in categories_df.iloc[0]]
 
     # 3. Convert category values to 0s and 1s (any positive int is converted to 1)
-    categories_df = categories_df.applymap(lambda x: int(bool(int(x.split("-")[1]))))
+    categories_df = categories_df.applymap(lambda x: int(bool(int(x[-1]))))
 
     # 4. Replace categories column with new category columns
-    df = pd.concat([df.drop(columns=["categories"]), categories_df], axis=1)
+    df = df.drop(columns=["categories"]).join(categories_df)
 
-    # 5. Remove duplicates
-    df = df.drop_duplicates()
+    # 5. Remove duplicates (two kinds)
+    df = df.drop_duplicates().drop_duplicates(subset=["message"], keep=False)
 
     logging.info("Data successfully cleaned.")
 
