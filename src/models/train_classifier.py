@@ -84,7 +84,7 @@ def tune_evaluate_model(
     n_splits: int = 5,
     n_jobs: int = 4,
     random_seed: int = 8080,
-) -> Tuple[Pipeline, pd.DataFrame]:
+) -> Tuple[Pipeline, pd.DataFrame, pd.DataFrame]:
     """Evaluate a model on test data after finding the best hyper-parameters.
     A more computationally-expensive but also stricter option would use two K-fold loops
     instead, where the model is tuned and tested on each fold.
@@ -102,15 +102,16 @@ def tune_evaluate_model(
 
     Returns:
         Model refitted to all data using optimal hyper-parameters.
+        Model test performance metrics.
         Grid Search results.
 
     """
     # 0. Setup
     hparams = {
-        "clf__n_estimators": [5, 10, 25, 50],
+        "clf__n_estimators": [5, 10, 25],
         "clf__criterion": ["gini", "entropy"],
-        "clf__max_samples": [0.3, 0.6, 1],
-        "clf__max_depth": [4, 8, 16],
+        "clf__max_samples": [0.3, 0.6],
+        "clf__max_depth": [4, 8],
         "clf__max_features": ["sqrt", "log2"],
         "clf__class_weight": ["balanced", "balanced_subsample"],
     }
@@ -168,38 +169,49 @@ def tune_evaluate_model(
 
     logging.info("Final model ready for deployment!")
 
-    return final_model, pd.DataFrame(performance_metrics).transpose().unstack(level=1)
+    return (
+        final_model,
+        pd.DataFrame(performance_metrics).transpose().unstack(level=1),
+        pd.DataFrame(gridsearch_estimator.cv_results_),
+    )
 
 
-def save_model(
+def save_results(
     model: Pipeline,
-    model_filepath: Path,
+    results_path: Path,
     performance_metrics: Optional[pd.DataFrame] = None,
-    performance_metrics_filepath: Optional[Path] = None,
+    cv_results: Optional[pd.DataFrame] = None,
 ):
     """Save model to disk.
 
     Args:
         model: Scikit-learn model to save to disk.
-        model_filepath: Path to save model to.
+        results_path: Where to store results.
         performance_metrics: Model performance metrics.
-        performance_metrics_filepath: Path to store performance metrics to.
+        cv_results: Grid Search CV results.
     """
     # 1. Save model to disk
-    assert model_filepath.suffix == ".pkl"
     logging.info("Saving model to disk...")
 
-    pickle.dump(model, model_filepath.open("wb"))
+    pickle.dump(model, results_path.joinpath("model.pkl").open("wb"))
 
     logging.info("Model saved successfully!")
 
-    # 2. Save K-fold test metrics to disk
-    assert performance_metrics_filepath.suffix == ".csv"
-    logging.info("Saving performance metrics to disk...")
+    # 2. Save model metrics to disk
+    if performance_metrics is not None:
+        logging.info("Saving performance metrics to disk...")
 
-    performance_metrics.to_csv(performance_metrics_filepath)
+        performance_metrics.to_csv(results_path.joinpath("performance_metrics.csv"))
 
-    logging.info("Performance metrics saved successfully!")
+        logging.info("Performance metrics saved successfully!")
+
+    # 3. Save Grid Search CV results
+    if cv_results is not None:
+        logging.info("Grid Search CV results to disk...")
+
+        cv_results.to_csv(results_path.joinpath("cv_results.csv"))
+
+        logging.info("Grid Search CV results saved successfully!")
 
 
 def main(
@@ -210,19 +222,9 @@ def main(
         .joinpath("data/disaster/disaster_response.db"),
         help="File path to sqlite database containing input data.",
     ),
-    model_filepath: Path = typer.Argument(
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("data/models/disaster_response.pkl"),
-        help="File path to store final model in.",
-    ),
-    performance_metrics_filepath: Path = typer.Argument(
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("data/models/train_test_metrics.csv"),
-        help="File path to store model performance metrics.",
+    results_path: Path = typer.Argument(
+        Path(__file__).resolve().parents[2].joinpath("data/models"),
+        help="Directory to save results to, including model and metrics.",
     ),
     random_seed: int = typer.Option(
         8080,
@@ -247,7 +249,7 @@ def main(
     model = build_pipeline(random_seed=random_seed)
 
     # 3. Evaluate and tune model
-    final_model, performance_metrics = tune_evaluate_model(
+    final_model, performance_metrics, cv_results = tune_evaluate_model(
         model,
         X,
         y,
@@ -258,11 +260,11 @@ def main(
     )
 
     # 4. Save model to disk
-    save_model(
+    save_results(
         final_model,
-        model_filepath,
+        results_path,
         performance_metrics=performance_metrics,
-        performance_metrics_filepath=performance_metrics_filepath,
+        cv_results=cv_results,
     )
 
 
