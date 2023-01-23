@@ -1,4 +1,5 @@
-src/app/templates/master.html<!doctype html>
+src/app/templates/master.html
+<!doctype html>
 <html lang="en">
 
 <head>
@@ -12,8 +13,8 @@ src/app/templates/master.html<!doctype html>
         integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
         integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <script src="https://d14fo0winaifog.cloudfront.net/plotly-basic.js"></script>
+    <script src="jquery-3.6.1.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.17.1.min.js"></script>
 </head>
 
 <body>
@@ -72,7 +73,7 @@ src/app/templates/master.html<!doctype html>
         const graphs = {{ graphJSON | safe}};
         const ids = {{ ids | safe}};
         for (let i in graphs) {
-            Plotly.plot(ids[i], graphs[i].data, graphs[i].layout);
+            Plotly.newPlot(ids[i], graphs[i].data, graphs[i].layout);
         }
     </script>
 
