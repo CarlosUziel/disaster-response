@@ -1,0 +1,23 @@
+name: disaster_response
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - pandas
+  - jupyterlab
+  - isort
+  - black-jupyter
+  - autoflake
+  - sqlalchemy
+  - ca-certificates
+  - certifi
+  - openssl
+  - typer
+  - nltk
+  - nltk_data
+  - py-xgboost
+  - python=3.11
+  - plotly
+  - flask
+prefix: /home/uziel/miniconda3/envs/disaster_response
