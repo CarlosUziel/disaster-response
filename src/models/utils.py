@@ -1,6 +1,7 @@
 from typing import Dict
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     balanced_accuracy_score,
     f1_score,
@@ -28,20 +29,15 @@ def get_classification_metrics(y_true: np.array, y_pred: np.array) -> Dict[str, 
     }
 
 
-def multi_label_balanced_accuracy(y_true: np.array, y_pred: np.array) -> float:
-    """Compute mean balanced accuracy for multiple labels.
-
-    Args:
-        y_true: True labels.
-        y_pred: Predicted labels.
-
-    Returns:
-        Mean balanced accuracy across all labels.
-
-    """
-    return np.mean(
+def get_best_cv_indx(cv_results: np.array) -> int:
+    cv_results_df = pd.DataFrame(cv_results)
+    cv_results_df.sort_values(
         [
-            balanced_accuracy_score(y_true[:, i], y_pred[:, i])
-            for i in range(y_true.shape[1])
-        ]
+            "mean_test_f1_weighted",
+            "mean_test_precision_weighted",
+            "mean_test_recall_weighted",
+        ],
+        ascending=False,
+        inplace=True,
     )
+    return cv_results_df.index.to_list()[0]
