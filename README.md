@@ -3,7 +3,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <img src="images/web_app.png" alt="Web App" width="700" height="350">
+  <img src="images/web_app.png" alt="Web App" width="700" height="170">
 
   <h3 align="center">Classifying Disaster Response Messages in a Data App</h3>
 
