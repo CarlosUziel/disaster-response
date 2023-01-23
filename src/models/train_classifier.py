@@ -10,14 +10,13 @@ import numpy as np
 import pandas as pd
 import typer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import make_scorer
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 from sqlalchemy import create_engine
 
 from data.utils import is_binary, tokenize
-from models.utils import get_classification_metrics, multi_label_balanced_accuracy
+from models.transformers.dense_tdidf import DenseTfidfVectorizer
+from models.utils import get_best_cv_indx, get_classification_metrics
 
 logging.basicConfig(force=True)
 logging.getLogger().setLevel(logging.INFO)
@@ -65,13 +64,16 @@ def build_pipeline(random_seed: int = 8080) -> Pipeline:
         [
             (
                 "tfidf",
-                TfidfVectorizer(
+                DenseTfidfVectorizer(
                     tokenizer=tokenize,
                     token_pattern=None,
                     strip_accents="unicode",
                 ),
             ),
-            ("clf", RandomForestClassifier(random_state=random_seed)),
+            (
+                "clf",
+                RandomForestClassifier(random_state=random_seed),
+            ),
         ]
     )
 
@@ -108,11 +110,10 @@ def tune_evaluate_model(
     """
     # 0. Setup
     hparams = {
-        "clf__n_estimators": [5, 10, 25],
-        "clf__criterion": ["gini", "entropy"],
-        "clf__max_samples": [0.3, 0.6],
-        "clf__max_depth": [4, 8],
-        "clf__max_features": ["sqrt", "log2"],
+        "tfidf__sublinear_tf": [True, False],
+        "tfidf__min_df": (0.01, 0.05, 0.1),
+        "clf__n_estimators": [50, 100, 200],
+        "clf__max_depth": [None, 16, 32, 64],
         "clf__class_weight": ["balanced", "balanced_subsample"],
     }
 
@@ -120,7 +121,8 @@ def tune_evaluate_model(
     gridsearch_estimator = GridSearchCV(
         deepcopy(model),
         hparams,
-        scoring=make_scorer(multi_label_balanced_accuracy),
+        scoring=["f1_weighted", "precision_weighted", "recall_weighted"],
+        refit=get_best_cv_indx,
         cv=n_splits,
         n_jobs=n_jobs,
         verbose=2,
@@ -128,8 +130,18 @@ def tune_evaluate_model(
 
     # 2. Split data into train and validation sets
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=random_seed, shuffle=True
+        X,
+        y,
+        # make it big to increase chances of getting samples of all labels
+        test_size=0.3,
+        random_state=random_seed,
+        shuffle=True,
     )
+
+    train_dist = {cat: y_train[:, i].sum() for i, cat in enumerate(category_names)}
+    logging.info(f"Labels distribution in training samples:\n{train_dist}")
+    test_dist = {cat: y_test[:, i].sum() for i, cat in enumerate(category_names)}
+    logging.info(f"Labels distribution in testing samples:\n{test_dist}")
 
     # 3. Tune model hyper-parameters on train data
     logging.info("Tuning model using Grid Search...")
@@ -172,7 +184,14 @@ def tune_evaluate_model(
     return (
         final_model,
         pd.DataFrame(performance_metrics).transpose().unstack(level=1),
-        pd.DataFrame(gridsearch_estimator.cv_results_),
+        pd.DataFrame(gridsearch_estimator.cv_results_).sort_values(
+            [
+                "mean_test_f1_weighted",
+                "mean_test_precision_weighted",
+                "mean_test_recall_weighted",
+            ],
+            ascending=False,
+        ),
     )
 
 
@@ -231,11 +250,11 @@ def main(
         help="Seed to initialize random state.",
     ),
     n_splits: int = typer.Option(
-        5,
+        4,
         help="Number of K-fold cross-validation splits.",
     ),
     n_jobs: int = typer.Option(
-        multiprocessing.cpu_count() // 2,
+        multiprocessing.cpu_count() - 2,
         help=(
             "Number of jobs to run in parallel for Grid Search hyper-parameter tuning."
         ),
