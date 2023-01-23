@@ -5,6 +5,7 @@ import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
+import joblib
 
 import numpy as np
 import pandas as pd
@@ -212,7 +213,7 @@ def save_results(
     # 1. Save model to disk
     logging.info("Saving model to disk...")
 
-    pickle.dump(model, results_path.joinpath("model.pkl").open("wb"))
+    joblib.dump(model, results_path.joinpath("model.pkl").open("wb"), compress=9)
 
     logging.info("Model saved successfully!")
 
