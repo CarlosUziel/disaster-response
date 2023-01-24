@@ -5,7 +5,7 @@ import pandas as pd
 import typer
 from sqlalchemy import create_engine
 
-logging.basicConfig(force=True)
+logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
 

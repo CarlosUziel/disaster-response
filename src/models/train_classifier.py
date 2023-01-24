@@ -18,7 +18,7 @@ from data.utils import is_binary, tokenize
 from models.transformers.dense_tdidf import DenseTfidfVectorizer
 from models.utils import get_best_cv_indx, get_classification_metrics
 
-logging.basicConfig(force=True)
+logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
 
